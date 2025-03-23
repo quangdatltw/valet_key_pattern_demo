@@ -1,46 +1,44 @@
-const express = require('express');
-const AWS = require('aws-sdk');
-const app = express();
+// server/src/index.ts
+import express from "express";
+import cors from "cors";
+import { S3Client } from "@aws-sdk/client-s3";
+import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
+import { v4 as uuid } from "uuid";
+import dotenv from "dotenv";
+
+dotenv.config();
+
 const port = 8080;
+const s3Client = new S3Client({ region: "ap-southeast-1" });
 
-// Configure AWS SDK
-AWS.config.update({ region: 'ap-southeast-1' }); // Replace with your region
-const s3 = new AWS.S3();
+const app = express();
+app.use(express.json());
+app.use(cors());
 
-const bucketName = 'valet-key-demo'; // Replace with your bucket name
-const objectKey = 'image.png'; // Replace with your image key
+async function generateUploadUrl({ type }) {
+    const name = uuid();
+    const expiresInMinutes = 1;
+    return await createPresignedPost(s3Client, {
+        Bucket: "valet-key-demo",
+        Key: `${name}`,
+        Expires: expiresInMinutes * 60, // the url will only be valid for 1 minute
+        Conditions: [["eq", "$Content-Type", type]],
+    });
+}
 
-// Serve the web app
-app.get('/', (req, res) => {
-    res.sendFile(__dirname + '/index.html');
-});
-
-// Fetch image without Valet Key (via EC2 server)
-app.get('/fetch-image', async (req, res) => {
+app.post("/", async function (req, res) {
     try {
-        const startTime = Date.now();
-        const data = await s3.getObject({ Bucket: bucketName, Key: objectKey }).promise();
-        const endTime = Date.now();
-        res.json({
-            image: data.Body.toString(),
-            timeTaken: endTime - startTime
-        });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+        const type = req.body.type;
+        if (!type) {
+            return res.status(400).json("invalid request body");
+        }
+        const data = await generateUploadUrl({ type });
+        return res.json(data);
+    } catch (e) {
+        return res.status(500).json(e.message);
     }
 });
 
-// Generate Valet Key (pre-signed URL)
-app.get('/generate-valet-key', (req, res) => {
-    const params = {
-        Bucket: bucketName,
-        Key: objectKey,
-        Expires: 60 // URL expires in 60 seconds
-    };
-    const url = s3.getSignedUrl('getObject', params);
-    res.json({ url });
-});
-
 app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+    console.log(`The Server is running on http://localhost:${port}`);
 });
