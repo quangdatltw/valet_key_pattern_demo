@@ -1,14 +1,14 @@
 const express = require('express');
 const AWS = require('aws-sdk');
 const app = express();
-const port = 3000;
+const port = 8080;
 
 // Configure AWS SDK
-AWS.config.update({ region: 'us-east-1' }); // Replace with your region
+AWS.config.update({ region: 'ap-southeast-1' }); // Replace with your region
 const s3 = new AWS.S3();
 
-const bucketName = 'valet-key-demo-bucket'; // Replace with your bucket name
-const objectKey = 'example-image.jpg'; // Replace with your image key
+const bucketName = 'valet-key-demo'; // Replace with your bucket name
+const objectKey = 'image.png'; // Replace with your image key
 
 // Serve the web app
 app.get('/', (req, res) => {
