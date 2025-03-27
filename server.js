@@ -1,10 +1,12 @@
-// server/src/index.ts
+
 import express from "express";
 import cors from "cors";
 import { S3Client } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { v4 as uuid } from "uuid";
 import dotenv from "dotenv";
+import * as path from "node:path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
@@ -14,6 +16,14 @@ const s3Client = new S3Client({ region: "ap-southeast-1" });
 const app = express();
 app.use(express.json());
 app.use(cors());
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+app.get('/', (req, res) => {
+    res.sendFile(__dirname + '/index.html');
+});
+
 
 async function generateUploadUrl({ type }) {
     const name = uuid();

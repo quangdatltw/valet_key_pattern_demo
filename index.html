@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Upload to S3</title>
+</head>
+<body>
+<h1>Upload to S3</h1>
+<p>Upload a file to Amazon S3 using a presigned POST request.</p>
+
+<form enctype="multipart/form-data" id="uploadForm">
+    <label for="file">File:</label>
+    <input id="file" name="file" required type="file"/> <br/>
+    <input name="submit" type="submit" value="Upload to Amazon S3"/>
+</form>
+
+<div id="output">
+    <p>Presigned Post:
+    <pre id="presignedPost"></pre>
+    </p>
+    <p>Uploaded File URL: <a href="#" id="uploadedFileUrl" target="_blank"></a></p>
+</div>
+
+<script>
+    document.getElementById("uploadForm").addEventListener("submit", async function (event) {
+        event.preventDefault();
+        const file = event.target.elements.file.files[0];
+        const presignedPost = await requestPresignedPost(file);
+        document.getElementById("presignedPost").textContent = JSON.stringify(presignedPost, null, 2);
+        const uploadedFileUrl = await uploadFile(file, presignedPost);
+        const uploadedFileUrlElement = document.getElementById("uploadedFileUrl");
+        uploadedFileUrlElement.textContent = uploadedFileUrl;
+        uploadedFileUrlElement.href = uploadedFileUrl;
+    });
+
+    async function requestPresignedPost(file) {
+        const {type} = file;
+        const res = await window.fetch("http://localhost:8080/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                type,
+            }),
+        });
+        return res.json();
+    }
+
+    async function uploadFile(file, presignedPost) {
+        const formData = new FormData();
+        formData.append("Content-Type", file.type);
+        Object.entries(presignedPost.fields).forEach(([key, value]) => {
+            formData.append(key, value);
+        });
+        formData.append("file", file);
+
+        const res = await window.fetch(presignedPost.url, {
+            method: "POST",
+            body: formData,
+        });
+
+        const location = res.headers.get("Location"); // get the final url of our uploaded image
+        return decodeURIComponent(location);
+    }
+</script>
+</body>
+</html>
