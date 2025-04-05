@@ -1,70 +1,254 @@
 <!DOCTYPE html>
-<html lang="en">
+        <html lang="en">
 
-<head>
-    <meta charset="UTF-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>Upload to S3</title>
-</head>
-<body>
-<h1>Upload to S3</h1>
-<p>Upload a file to Amazon S3 using a presigned POST request.</p>
+        <head>
+            <meta charset="UTF-8"/>
+            <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+            <title>Upload to S3</title>
+            <style>
+                body {
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                    line-height: 1.6;
+                    max-width: 1000px;
+                    margin: 0 auto;
+                    padding: 20px;
+                    color: #333;
+                }
 
-<form enctype="multipart/form-data" id="uploadForm">
-    <label for="file">File:</label>
-    <input id="file" name="file" required type="file"/> <br/>
-    <input name="submit" type="submit" value="Upload to Amazon S3"/>
-</form>
+                h1 {
+                    border-bottom: 2px solid #0066cc;
+                    padding-bottom: 10px;
+                    color: #0066cc;
+                }
 
-<div id="output">
-    <p>Presigned Post:
-    <pre id="presignedPost"></pre>
-    </p>
-    <p>Uploaded File URL: <a href="#" id="uploadedFileUrl" target="_blank"></a></p>
-</div>
+                form {
+                    background-color: #f5f5f5;
+                    padding: 20px;
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    border: 1px solid #ddd;
+                }
 
-<script>
-    document.getElementById("uploadForm").addEventListener("submit", async function (event) {
-        event.preventDefault();
-        const file = event.target.elements.file.files[0];
-        const presignedPost = await requestPresignedPost(file);
-        document.getElementById("presignedPost").textContent = JSON.stringify(presignedPost, null, 2);
-        const uploadedFileUrl = await uploadFile(file, presignedPost);
-        const uploadedFileUrlElement = document.getElementById("uploadedFileUrl");
-        uploadedFileUrlElement.textContent = uploadedFileUrl;
-        uploadedFileUrlElement.href = uploadedFileUrl;
-    });
+                label {
+                    font-weight: bold;
+                    display: inline-block;
+                    width: 70px;
+                }
 
-    async function requestPresignedPost(file) {
-        const {type} = file;
-        const res = await window.fetch("http://localhost:8080/", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                type,
-            }),
-        });
-        return res.json();
-    }
+                input[type="file"] {
+                    padding: 10px 0;
+                    margin-bottom: 15px;
+                }
 
-    async function uploadFile(file, presignedPost) {
-        const formData = new FormData();
-        formData.append("Content-Type", file.type);
-        Object.entries(presignedPost.fields).forEach(([key, value]) => {
-            formData.append(key, value);
-        });
-        formData.append("file", file);
+                input[type="submit"] {
+                    background-color: #0066cc;
+                    color: white;
+                    border: none;
+                    padding: 10px 20px;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-weight: bold;
+                }
 
-        const res = await window.fetch(presignedPost.url, {
-            method: "POST",
-            body: formData,
-        });
+                input[type="submit"]:hover {
+                    background-color: #0055aa;
+                }
 
-        const location = res.headers.get("Location"); // get the final url of our uploaded image
-        return decodeURIComponent(location);
-    }
-</script>
-</body>
-</html>
+                .api-log {
+                    margin-top: 20px;
+                    border: 1px solid #ddd;
+                    padding: 15px;
+                    border-radius: 8px;
+                    background-color: #f9f9f9;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                }
+
+                .api-log h2 {
+                    color: #0066cc;
+                    margin-top: 0;
+                    border-bottom: 1px solid #ddd;
+                    padding-bottom: 10px;
+                }
+
+                .log-entry {
+                    margin-bottom: 15px;
+                    padding: 12px;
+                    border-left: 4px solid #0066cc;
+                    background-color: #f0f7ff;
+                    border-radius: 0 4px 4px 0;
+                    transition: all 0.3s ease;
+                }
+
+                .log-entry:hover {
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+                }
+
+                .log-entry h3 {
+                    margin-top: 0;
+                    color: #333;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+
+                .log-entry h4 {
+                    color: #0066cc;
+                    margin-bottom: 5px;
+                    border-bottom: 1px dashed #ccc;
+                    padding-bottom: 5px;
+                }
+
+                pre {
+                    background-color: #f5f5f5;
+                    padding: 10px;
+                    border-radius: 5px;
+                    overflow-x: auto;
+                    max-height: 300px;
+                    border: 1px solid #ddd;
+                    font-family: 'Consolas', 'Monaco', monospace;
+                }
+
+                .latency {
+                    background-color: #e8f5e9;
+                    padding: 5px 10px;
+                    border-radius: 15px;
+                    font-size: 14px;
+                    color: #2e7d32;
+                    margin-left: 10px;
+                    display: inline-block;
+                }
+
+                .status-success {
+                    color: #2e7d32;
+                }
+
+                .status-error {
+                    color: #c62828;
+                }
+            </style>
+        </head>
+        <body>
+        <h1>Upload to S3</h1>
+        <p>Upload a file to Amazon S3 using a presigned POST request.</p>
+
+        <form enctype="multipart/form-data" id="uploadForm">
+            <label for="file">File:</label>
+            <input id="file" name="file" required type="file"/> <br/>
+            <input name="submit" type="submit" value="Upload to Amazon S3"/>
+        </form>
+
+        <div class="api-log">
+            <h2>API Call Logs</h2>
+            <div id="apiLogs"></div>
+        </div>
+
+        <script>
+            // Function to add a log entry
+            function logApiCall(title, request, response, latencyMs) {
+                const logsContainer = document.getElementById("apiLogs");
+                const logEntry = document.createElement("div");
+                logEntry.className = "log-entry";
+
+                const timestamp = new Date().toLocaleTimeString();
+                const latencyText = latencyMs ? `<span class="latency">${latencyMs}ms</span>` : '';
+
+                // Determine if this is a success or error
+                const statusClass = response.error ? 'status-error' : 'status-success';
+
+                logEntry.innerHTML = `
+                    <h3>${timestamp} - ${title} ${latencyText}</h3>
+                    <h4>Request:</h4>
+                    <pre>${JSON.stringify(request, null, 2)}</pre>
+                    <h4>Response:</h4>
+                    <pre class="${statusClass}">${JSON.stringify(response, null, 2)}</pre>
+                `;
+
+                logsContainer.prepend(logEntry);
+            }
+
+            document.getElementById("uploadForm").addEventListener("submit", async function (event) {
+                event.preventDefault();
+                const file = event.target.elements.file.files[0];
+
+                // Log the request for presigned URL
+                const presignedRequest = {
+                    url: "http://localhost:8080/",
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: { type: file.type }
+                };
+
+                try {
+                    // Measure presigned URL request time
+                    const presignedStartTime = performance.now();
+
+                    // Get presigned URL
+                    const presignedPost = await requestPresignedPost(file);
+
+                    const presignedEndTime = performance.now();
+                    const presignedLatency = Math.round(presignedEndTime - presignedStartTime);
+
+                    // Log the presigned response
+                    logApiCall("Request Presigned URL", presignedRequest, presignedPost, presignedLatency);
+
+                    // Upload to S3
+                    const s3Request = {
+                        url: presignedPost.url,
+                        method: "POST",
+                        body: "FormData with file and presigned fields"
+                    };
+
+                    // Measure S3 upload time
+                    const uploadStartTime = performance.now();
+
+                    const uploadedFileUrl = await uploadFile(file, presignedPost);
+
+                    const uploadEndTime = performance.now();
+                    const uploadLatency = Math.round(uploadEndTime - uploadStartTime);
+
+                    // Log the S3 upload response
+                    logApiCall("Upload to S3", s3Request, {
+                        status: "Success",
+                        uploadedFileUrl: uploadedFileUrl
+                    }, uploadLatency);
+
+                } catch (error) {
+                    logApiCall("Error", {}, {
+                        error: error.message
+                    });
+                }
+            });
+
+            async function requestPresignedPost(file) {
+                const {type} = file;
+                const res = await window.fetch("http://localhost:8080/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        type,
+                    }),
+                });
+                return res.json();
+            }
+
+            async function uploadFile(file, presignedPost) {
+                const formData = new FormData();
+                formData.append("Content-Type", file.type);
+                Object.entries(presignedPost.fields).forEach(([key, value]) => {
+                    formData.append(key, value);
+                });
+                formData.append("file", file);
+
+                const res = await window.fetch(presignedPost.url, {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const location = res.headers.get("Location"); // get the final url of our uploaded image
+                return decodeURIComponent(location);
+            }
+        </script>
+        </body>
+        </html>
