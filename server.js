@@ -7,6 +7,8 @@ import { v4 as uuid } from "uuid";
 import dotenv from "dotenv";
 import * as path from "node:path";
 import { fileURLToPath } from "url";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 dotenv.config();
 
@@ -51,4 +53,63 @@ app.post("/", async function (req, res) {
 
 app.listen(port, () => {
     console.log(`The Server is running on http://localhost:${port}`);
+});
+
+app.get("/presigned-get", async (req, res) => {
+    try {
+        const key = req.query.key || "image.png";
+        console.log(`Generating presigned URL for ${key}`);
+
+        // Make sure your bucket name matches exactly what you set up in AWS
+        const bucketName = "valet-key-demo"; // Confirm this is correct
+
+        const command = new GetObjectCommand({
+            Bucket: bucketName,
+            Key: key
+        });
+
+        const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+        console.log(`Generated URL for ${key}`);
+
+        res.json({ url });
+    } catch (error) {
+        console.error("Error generating presigned URL:", error);
+        res.status(500).json({
+            error: error.message,
+            details: error.stack
+        });
+    }
+});
+
+// Endpoint for server proxy
+app.get("/proxy-image", async (req, res) => {
+    try {
+        const key = req.query.key || "image.png";
+        console.log(`Proxying image ${key}`);
+
+        // Make sure your bucket name matches exactly what you set up in AWS
+        const bucketName = "valet-key-demo"; // Confirm this is correct
+
+        const command = new GetObjectCommand({
+            Bucket: bucketName,
+            Key: key
+        });
+
+        const response = await s3Client.send(command);
+        console.log(`Successfully retrieved ${key}`);
+
+        // Set appropriate headers
+        if (response.ContentType) {
+            res.set('Content-Type', response.ContentType);
+        }
+
+        // Stream the object data to the client
+        response.Body.pipe(res);
+    } catch (error) {
+        console.error("Error proxying image:", error);
+        res.status(500).json({
+            error: error.message,
+            details: error.stack
+        });
+    }
 });

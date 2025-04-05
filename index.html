@@ -1,254 +1,491 @@
 <!DOCTYPE html>
-        <html lang="en">
+<html lang="en">
 
-        <head>
-            <meta charset="UTF-8"/>
-            <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-            <title>Upload to S3</title>
-            <style>
-                body {
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                    line-height: 1.6;
-                    max-width: 1000px;
-                    margin: 0 auto;
-                    padding: 20px;
-                    color: #333;
-                }
+<head>
+    <meta charset="UTF-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Upload to S3</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+        }
+            
+        h1, h2 {
+            border-bottom: 2px solid #0066cc;
+            padding-bottom: 10px;
+            color: #0066cc;
+        }
 
-                h1 {
-                    border-bottom: 2px solid #0066cc;
-                    padding-bottom: 10px;
-                    color: #0066cc;
-                }
+        form, .download-section {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+        }
 
-                form {
-                    background-color: #f5f5f5;
-                    padding: 20px;
-                    border-radius: 8px;
-                    margin-bottom: 20px;
-                    border: 1px solid #ddd;
-                }
+        .download-section {
+            display: flex;
+            justify-content: space-between;
+        }
 
-                label {
-                    font-weight: bold;
-                    display: inline-block;
-                    width: 70px;
-                }
+        .download-method {
+            flex: 1;
+            padding: 15px;
+            margin: 0 10px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
 
-                input[type="file"] {
-                    padding: 10px 0;
-                    margin-bottom: 15px;
-                }
+        label {
+            font-weight: bold;
+            display: inline-block;
+            width: 70px;
+        }
 
-                input[type="submit"] {
-                    background-color: #0066cc;
-                    color: white;
-                    border: none;
-                    padding: 10px 20px;
-                    border-radius: 4px;
-                    cursor: pointer;
-                    font-weight: bold;
-                }
+        input[type="file"] {
+            padding: 10px 0;
+            margin-bottom: 15px;
+        }
 
-                input[type="submit"]:hover {
-                    background-color: #0055aa;
-                }
+        button, input[type="submit"] {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px 0;
+            width: 100%;
+        }
 
-                .api-log {
-                    margin-top: 20px;
-                    border: 1px solid #ddd;
-                    padding: 15px;
-                    border-radius: 8px;
-                    background-color: #f9f9f9;
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                }
+        button:hover, input[type="submit"]:hover {
+            background-color: #0055aa;
+        }
 
-                .api-log h2 {
-                    color: #0066cc;
-                    margin-top: 0;
-                    border-bottom: 1px solid #ddd;
-                    padding-bottom: 10px;
-                }
+        .api-log {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
 
-                .log-entry {
-                    margin-bottom: 15px;
-                    padding: 12px;
-                    border-left: 4px solid #0066cc;
-                    background-color: #f0f7ff;
-                    border-radius: 0 4px 4px 0;
-                    transition: all 0.3s ease;
-                }
+        .api-log h2 {
+            color: #0066cc;
+            margin-top: 0;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 10px;
+        }
 
-                .log-entry:hover {
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-                }
+        .log-entry {
+            margin-bottom: 15px;
+            padding: 12px;
+            border-left: 4px solid #0066cc;
+            background-color: #f0f7ff;
+            border-radius: 0 4px 4px 0;
+            transition: all 0.3s ease;
+        }
 
-                .log-entry h3 {
-                    margin-top: 0;
-                    color: #333;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
+        .log-entry:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
 
-                .log-entry h4 {
-                    color: #0066cc;
-                    margin-bottom: 5px;
-                    border-bottom: 1px dashed #ccc;
-                    padding-bottom: 5px;
-                }
+        .log-entry h3 {
+            margin-top: 0;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-                pre {
-                    background-color: #f5f5f5;
-                    padding: 10px;
-                    border-radius: 5px;
-                    overflow-x: auto;
-                    max-height: 300px;
-                    border: 1px solid #ddd;
-                    font-family: 'Consolas', 'Monaco', monospace;
-                }
+        .log-entry h4 {
+            color: #0066cc;
+            margin-bottom: 5px;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 5px;
+        }
 
-                .latency {
-                    background-color: #e8f5e9;
-                    padding: 5px 10px;
-                    border-radius: 15px;
-                    font-size: 14px;
-                    color: #2e7d32;
-                    margin-left: 10px;
-                    display: inline-block;
-                }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 300px;
+            border: 1px solid #ddd;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
 
-                .status-success {
-                    color: #2e7d32;
-                }
+        .latency {
+            background-color: #e8f5e9;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            color: #2e7d32;
+            margin-left: 10px;
+            display: inline-block;
+        }
 
-                .status-error {
-                    color: #c62828;
-                }
-            </style>
-        </head>
-        <body>
-        <h1>Upload to S3</h1>
-        <p>Upload a file to Amazon S3 using a presigned POST request.</p>
+        .status-success {
+            color: #2e7d32;
+        }
 
-        <form enctype="multipart/form-data" id="uploadForm">
-            <label for="file">File:</label>
-            <input id="file" name="file" required type="file"/> <br/>
-            <input name="submit" type="submit" value="Upload to Amazon S3"/>
-        </form>
+        .status-error {
+            color: #c62828;
+        }
 
-        <div class="api-log">
-            <h2>API Call Logs</h2>
-            <div id="apiLogs"></div>
-        </div>
+        .image-result {
+            margin-top: 10px;
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            display: none;
+        }
 
-        <script>
-            // Function to add a log entry
-            function logApiCall(title, request, response, latencyMs) {
-                const logsContainer = document.getElementById("apiLogs");
-                const logEntry = document.createElement("div");
-                logEntry.className = "log-entry";
+        .performance-comparison {
+            background-color: #fff8e1;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: 1px solid #ffe082;
+        }
 
-                const timestamp = new Date().toLocaleTimeString();
-                const latencyText = latencyMs ? `<span class="latency">${latencyMs}ms</span>` : '';
+        .file-select {
+            display: block;
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: #fff;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+<h1>Upload to S3</h1>
+<p>Upload a file to Amazon S3 using a presigned POST request.</p>
 
-                // Determine if this is a success or error
-                const statusClass = response.error ? 'status-error' : 'status-success';
+<form enctype="multipart/form-data" id="uploadForm">
+    <label for="file">File:</label>
+    <input id="file" name="file" required type="file"/> <br/>
+    <input name="submit" type="submit" value="Upload to Amazon S3"/>
+</form>
 
-                logEntry.innerHTML = `
-                    <h3>${timestamp} - ${title} ${latencyText}</h3>
-                    <h4>Request:</h4>
-                    <pre>${JSON.stringify(request, null, 2)}</pre>
-                    <h4>Response:</h4>
-                    <pre class="${statusClass}">${JSON.stringify(response, null, 2)}</pre>
-                `;
+<h2>Image Download Comparison</h2>
+<p>Compare download performance between valet key pattern and server proxy.</p>
 
-                logsContainer.prepend(logEntry);
-            }
+<div class="download-section">
+    <div class="download-method">
+        <h3>Valet Key Method</h3>
+        <p>Client directly downloads from S3 using a presigned URL</p>
+        <select class="file-select" id="valetFileSelect">
+            <option value="image.png">image.png</option>
+            <option value="7mb.jpg">7mb.jpg (7MB)</option>
+            <option value="15mb.png">15mb.png (15MB)</option>
+        </select>
+        <button id="downloadValet">Download with Valet Key</button>
+        <img alt="Valet key download result" class="image-result" id="valetImage"/>
+        <div id="valetStats"></div>
+    </div>
 
-            document.getElementById("uploadForm").addEventListener("submit", async function (event) {
-                event.preventDefault();
-                const file = event.target.elements.file.files[0];
+    <div class="download-method">
+        <h3>Server Proxy Method</h3>
+        <p>Server downloads from S3 and forwards to client</p>
+        <select class="file-select" id="proxyFileSelect">
+            <option value="image.png">image.png</option>
+            <option value="7mb.jpg">7mb.jpg (7MB)</option>
+            <option value="15mb.png">15mb.png (15MB)</option>
+        </select>
+        <button id="downloadProxy">Download via Server</button>
+        <img alt="Server proxy download result" class="image-result" id="proxyImage"/>
+        <div id="proxyStats"></div>
+    </div>
+</div>
 
-                // Log the request for presigned URL
-                const presignedRequest = {
-                    url: "http://localhost:8080/",
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: { type: file.type }
-                };
+<div class="performance-comparison" id="performanceComparison" style="display: none;">
+    <h3>Performance Comparison</h3>
+    <div id="comparisonResults"></div>
+</div>
 
-                try {
-                    // Measure presigned URL request time
-                    const presignedStartTime = performance.now();
+<div class="api-log">
+    <h2>API Call Logs</h2>
+    <div id="apiLogs"></div>
+</div>
 
-                    // Get presigned URL
-                    const presignedPost = await requestPresignedPost(file);
+<script>
+    // Use dynamic base URL instead of hardcoded localhost
+    const apiBaseUrl = window.location.origin;
 
-                    const presignedEndTime = performance.now();
-                    const presignedLatency = Math.round(presignedEndTime - presignedStartTime);
+    // Function to add a log entry
+    function logApiCall(title, request, response, latencyMs) {
+        const logsContainer = document.getElementById("apiLogs");
+        const logEntry = document.createElement("div");
+        logEntry.className = "log-entry";
 
-                    // Log the presigned response
-                    logApiCall("Request Presigned URL", presignedRequest, presignedPost, presignedLatency);
+        const timestamp = new Date().toLocaleTimeString();
+        const latencyText = latencyMs ? `<span class="latency">${latencyMs}ms</span>` : '';
 
-                    // Upload to S3
-                    const s3Request = {
-                        url: presignedPost.url,
-                        method: "POST",
-                        body: "FormData with file and presigned fields"
-                    };
+        // Determine if this is a success or error
+        const statusClass = response.error ? 'status-error' : 'status-success';
 
-                    // Measure S3 upload time
-                    const uploadStartTime = performance.now();
+        logEntry.innerHTML = `
+                                                    <h3>${timestamp} - ${title} ${latencyText}</h3>
+                                                    <h4>Request:</h4>
+                                                    <pre>${JSON.stringify(request, null, 2)}</pre>
+                                                    <h4>Response:</h4>
+                                                    <pre class="${statusClass}">${JSON.stringify(response, null, 2)}</pre>
+                                                `;
 
-                    const uploadedFileUrl = await uploadFile(file, presignedPost);
+        logsContainer.prepend(logEntry);
+    }
 
-                    const uploadEndTime = performance.now();
-                    const uploadLatency = Math.round(uploadEndTime - uploadStartTime);
+    // Upload functionality
+    document.getElementById("uploadForm").addEventListener("submit", async function (event) {
+        event.preventDefault();
+        const file = event.target.elements.file.files[0];
 
-                    // Log the S3 upload response
-                    logApiCall("Upload to S3", s3Request, {
-                        status: "Success",
-                        uploadedFileUrl: uploadedFileUrl
-                    }, uploadLatency);
+        // Log the request for presigned URL
+        const presignedRequest = {
+            url: apiBaseUrl + "/",
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: {type: file.type}
+        };
 
-                } catch (error) {
-                    logApiCall("Error", {}, {
-                        error: error.message
-                    });
-                }
+        try {
+            // Measure presigned URL request time
+            const presignedStartTime = performance.now();
+
+            // Get presigned URL
+            const presignedPost = await requestPresignedPost(file);
+
+            const presignedEndTime = performance.now();
+            const presignedLatency = Math.round(presignedEndTime - presignedStartTime);
+
+            // Log the presigned response
+            logApiCall("Request Presigned URL", presignedRequest, presignedPost, presignedLatency);
+
+            // Upload to S3
+            const s3Request = {
+                url: presignedPost.url,
+                method: "POST",
+                body: "FormData with file and presigned fields"
+            };
+
+            // Measure S3 upload time
+            const uploadStartTime = performance.now();
+
+            const uploadedFileUrl = await uploadFile(file, presignedPost);
+
+            const uploadEndTime = performance.now();
+            const uploadLatency = Math.round(uploadEndTime - uploadStartTime);
+
+            // Log the S3 upload response
+            logApiCall("Upload to S3", s3Request, {
+                status: "Success",
+                uploadedFileUrl: uploadedFileUrl
+            }, uploadLatency);
+
+        } catch (error) {
+            logApiCall("Error", {}, {
+                error: error.message
             });
+        }
+    });
 
-            async function requestPresignedPost(file) {
-                const {type} = file;
-                const res = await window.fetch("http://localhost:8080/", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({
-                        type,
-                    }),
-                });
-                return res.json();
-            }
+    // Download with Valet Key
+    document.getElementById("downloadValet").addEventListener("click", async function () {
+        try {
+            const startTime = performance.now();
 
-            async function uploadFile(file, presignedPost) {
-                const formData = new FormData();
-                formData.append("Content-Type", file.type);
-                Object.entries(presignedPost.fields).forEach(([key, value]) => {
-                    formData.append(key, value);
-                });
-                formData.append("file", file);
+            // Get the selected file key from dropdown
+            const fileKey = document.getElementById("valetFileSelect").value;
 
-                const res = await window.fetch(presignedPost.url, {
-                    method: "POST",
-                    body: formData,
-                });
+            // Request presigned URL for download
+            const requestStart = performance.now();
+            const requestDetails = {
+                url: apiBaseUrl + "/presigned-get?key=" + fileKey,
+                method: "GET"
+            };
+            const response = await fetch(apiBaseUrl + "/presigned-get?key=" + fileKey);
 
-                const location = res.headers.get("Location"); // get the final url of our uploaded image
-                return decodeURIComponent(location);
-            }
-        </script>
-        </body>
-        </html>
+            const data = await response.json();
+            const requestEnd = performance.now();
+
+            // Log the presigned URL request
+            logApiCall("Get Presigned Download URL", requestDetails, data, Math.round(requestEnd - requestStart));
+
+            // Download the image using the presigned URL
+            const downloadStart = performance.now();
+            const imageResponse = await fetch(data.url);
+
+            const blob = await imageResponse.blob();
+            const downloadEnd = performance.now();
+
+            // Create object URL and display image
+            const imageUrl = URL.createObjectURL(blob);
+            const img = document.getElementById("valetImage");
+            img.src = imageUrl;
+            img.style.display = "block";
+
+            const totalTime = performance.now() - startTime;
+            const requestTime = requestEnd - requestStart;
+            const downloadTime = downloadEnd - downloadStart;
+
+            // Display stats
+            document.getElementById("valetStats").innerHTML = `
+                            <p><strong>Total time:</strong> ${Math.round(totalTime)}ms</p>
+                            <p><strong>Get presigned URL:</strong> ${Math.round(requestTime)}ms</p>
+                            <p><strong>Download from S3:</strong> ${Math.round(downloadTime)}ms</p>
+                            <p><strong>File size:</strong> ${(blob.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        `;
+
+            // Update comparison
+            updateComparison("valet", totalTime);
+
+            // Log the download
+            logApiCall("Download with Valet Key", {
+                url: data.url,
+                method: "GET",
+                fileKey: fileKey
+            }, {
+                status: "Success",
+                size: `${(blob.size / (1024 * 1024)).toFixed(2)} MB`,
+                type: blob.type
+            }, Math.round(downloadTime));
+
+        } catch (error) {
+            logApiCall("Error in Valet Download", {
+                url: apiBaseUrl + "/presigned-get?key=" + document.getElementById("valetFileSelect").value,
+                method: "GET"
+            }, {
+                error: error.message
+            });
+            document.getElementById("valetStats").innerHTML = `
+                            <p class="status-error"><strong>Error:</strong> ${error.message}</p>
+                        `;
+        }
+    });
+
+    // Download via Server Proxy
+    document.getElementById("downloadProxy").addEventListener("click", async function () {
+        try {
+            const startTime = performance.now();
+
+            // Get the selected file key from dropdown
+            const fileKey = document.getElementById("proxyFileSelect").value;
+
+            // Request image through server proxy - fixed URL formation
+            const response = await fetch(apiBaseUrl + "/proxy-image?key=" + fileKey);
+
+            const blob = await response.blob();
+
+            // Create object URL and display image
+            const imageUrl = URL.createObjectURL(blob);
+            const img = document.getElementById("proxyImage");
+            img.src = imageUrl;
+            img.style.display = "block";
+
+            const totalTime = performance.now() - startTime;
+
+            // Display stats
+            document.getElementById("proxyStats").innerHTML = `
+                            <p><strong>Total time:</strong> ${Math.round(totalTime)}ms</p>
+                            <p><strong>File size:</strong> ${(blob.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        `;
+
+            // Update comparison
+            updateComparison("proxy", totalTime);
+
+            // Log the download
+            logApiCall("Download via Server Proxy", {
+                url: apiBaseUrl + "/proxy-image?key=" + fileKey,
+                method: "GET"
+            }, {
+                status: "Success",
+                size: `${(blob.size / (1024 * 1024)).toFixed(2)} MB`,
+                type: blob.type
+            }, Math.round(totalTime));
+
+        } catch (error) {
+            logApiCall("Error in Server Proxy Download", {
+                url: apiBaseUrl + "/proxy-image?key=" + document.getElementById("proxyFileSelect").value,
+                method: "GET"
+            }, {
+                error: error.message
+            });
+            document.getElementById("proxyStats").innerHTML = `
+                            <p class="status-error"><strong>Error:</strong> ${error.message}</p>
+                        `;
+        }
+    });
+
+    // Function to update comparison results
+    const perfData = {
+        valet: null,
+        proxy: null
+    };
+
+    function updateComparison(method, time) {
+        perfData[method] = time;
+
+        // Only show comparison when both methods have been tested
+        if (perfData.valet && perfData.proxy) {
+            const comparison = document.getElementById("performanceComparison");
+            comparison.style.display = "block";
+
+            const diff = Math.abs(perfData.valet - perfData.proxy);
+            const faster = perfData.valet < perfData.proxy ? "Valet Key" : "Server Proxy";
+            const percentage = Math.round((diff / Math.max(perfData.valet, perfData.proxy)) * 100);
+
+            document.getElementById("comparisonResults").innerHTML = `
+                                                <p><strong>Valet Key method:</strong> ${Math.round(perfData.valet)}ms</p>
+                                                <p><strong>Server Proxy method:</strong> ${Math.round(perfData.proxy)}ms</p>
+                                                <p><strong>Result:</strong> ${faster} method was ${percentage}% faster (${Math.round(diff)}ms difference)</p>
+                                            `;
+        }
+    }
+
+    // Upload functions
+    async function requestPresignedPost(file) {
+        const {type} = file;
+        const res = await window.fetch(apiBaseUrl + "/", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                type,
+            }),
+        });
+        return res.json();
+    }
+
+    async function uploadFile(file, presignedPost) {
+        const formData = new FormData();
+        formData.append("Content-Type", file.type);
+        Object.entries(presignedPost.fields).forEach(([key, value]) => {
+            formData.append(key, value);
+        });
+        formData.append("file", file);
+
+        const res = await window.fetch(presignedPost.url, {
+            method: "POST",
+            body: formData,
+        });
+
+        const location = res.headers.get("Location"); // get the final url of our uploaded image
+        return decodeURIComponent(location);
+    }
+</script>
+</body>
+</html>
