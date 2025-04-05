@@ -51,8 +51,8 @@ app.post("/", async function (req, res) {
     }
 });
 
-app.listen(port, () => {
-    console.log(`The Server is running on http://localhost:${port}`);
+app.listen(port, '0.0.0.0', () => {
+    console.log(`The Server is running on port ${port}`);
 });
 
 app.get("/presigned-get", async (req, res) => {
