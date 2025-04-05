@@ -1,7 +1,7 @@
 
 import express from "express";
 import cors from "cors";
-import { S3Client } from "@aws-sdk/client-s3";
+import {HeadObjectCommand, S3Client} from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { v4 as uuid } from "uuid";
 import dotenv from "dotenv";
@@ -60,15 +60,26 @@ app.get("/presigned-get", async (req, res) => {
         const key = req.query.key || "image.png";
         console.log(`Generating presigned URL for ${key}`);
 
-        // Make sure your bucket name matches exactly what you set up in AWS
-        const bucketName = "valet-key-demo"; // Confirm this is correct
-
-        const command = new GetObjectCommand({
-            Bucket: bucketName,
+        // Check if object exists first
+        const headCommand = new HeadObjectCommand({
+            Bucket: "valet-key-demo",
             Key: key
         });
 
-        const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+        try {
+            await s3Client.send(headCommand);
+        } catch (error) {
+            // File doesn't exist
+            return res.status(404).json({ error: `File ${key} not found` });
+        }
+
+        // Continue with generating URL since file exists
+        const command = new GetObjectCommand({
+            Bucket: "valet-key-demo",
+            Key: key
+        });
+
+        const url = await getSignedUrl(s3Client, command, { expiresIn: 20 });
         console.log(`Generated URL for ${key}`);
 
         res.json({ url });
@@ -80,7 +91,6 @@ app.get("/presigned-get", async (req, res) => {
         });
     }
 });
-
 // Endpoint for server proxy
 app.get("/proxy-image", async (req, res) => {
     try {
@@ -94,8 +104,14 @@ app.get("/proxy-image", async (req, res) => {
             Bucket: bucketName,
             Key: key
         });
-
+        try {
+            await s3Client.send(command);
+        } catch (error) {
+            // File doesn't exist
+            return res.status(404).json({ error: `File ${key} not found` });
+        }
         const response = await s3Client.send(command);
+
         console.log(`Successfully retrieved ${key}`);
 
         // Set appropriate headers
@@ -107,6 +123,7 @@ app.get("/proxy-image", async (req, res) => {
         response.Body.pipe(res);
     } catch (error) {
         console.error("Error proxying image:", error);
+
         res.status(500).json({
             error: error.message,
             details: error.stack

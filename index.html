@@ -150,6 +150,11 @@
             display: none;
         }
 
+        video.image-result {
+            display: block;
+            width: 100%;
+        }
+
         .performance-comparison {
             background-color: #fff8e1;
             padding: 15px;
@@ -168,6 +173,11 @@
             background-color: #fff;
             font-size: 14px;
         }
+
+        .media-container {
+            margin-top: 10px;
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -180,7 +190,7 @@
     <input name="submit" type="submit" value="Upload to Amazon S3"/>
 </form>
 
-<h2>Image Download Comparison</h2>
+<h2>Media Download Comparison</h2>
 <p>Compare download performance between valet key pattern and server proxy.</p>
 
 <div class="download-section">
@@ -191,9 +201,10 @@
             <option value="image.png">image.png</option>
             <option value="7mb.jpg">7mb.jpg (7MB)</option>
             <option value="15mb.png">15mb.png (15MB)</option>
+            <option value="sample.mp4">sample.mp4 (Video)</option>
         </select>
         <button id="downloadValet">Download with Valet Key</button>
-        <img alt="Valet key download result" class="image-result" id="valetImage"/>
+        <div class="media-container" id="valetImage"></div>
         <div id="valetStats"></div>
     </div>
 
@@ -204,12 +215,17 @@
             <option value="image.png">image.png</option>
             <option value="7mb.jpg">7mb.jpg (7MB)</option>
             <option value="15mb.png">15mb.png (15MB)</option>
+            <option value="sample.mp4">sample.mp4 (Video)</option>
         </select>
         <button id="downloadProxy">Download via Server</button>
-        <img alt="Server proxy download result" class="image-result" id="proxyImage"/>
+        <div class="media-container" id="proxyImage"></div>
         <div id="proxyStats"></div>
     </div>
+
 </div>
+<button id="compareSimultaneously" style="display: block; margin: 20px auto; width: 50%; background-color: #4CAF50;">
+    Compare Both Methods Simultaneously
+</button>
 
 <div class="performance-comparison" id="performanceComparison" style="display: none;">
     <h3>Performance Comparison</h3>
@@ -225,6 +241,30 @@
     // Use dynamic base URL instead of hardcoded localhost
     const apiBaseUrl = window.location.origin;
 
+    function displayMedia(blob, elementId) {
+        const url = URL.createObjectURL(blob);
+        const container = document.getElementById(elementId);
+        container.innerHTML = '';
+
+        if (blob.type.startsWith('video/')) {
+            const video = document.createElement('video');
+            video.src = url;
+            video.controls = true;
+            video.autoplay = false;
+            video.className = 'image-result';
+            video.style.display = 'block';
+            container.appendChild(video);
+        } else {
+            const img = document.createElement('img');
+            img.src = url;
+            img.className = 'image-result';
+            img.style.display = 'block';
+            container.appendChild(img);
+        }
+
+        return url;
+    }
+
     // Function to add a log entry
     function logApiCall(title, request, response, latencyMs) {
         const logsContainer = document.getElementById("apiLogs");
@@ -238,12 +278,12 @@
         const statusClass = response.error ? 'status-error' : 'status-success';
 
         logEntry.innerHTML = `
-                                                    <h3>${timestamp} - ${title} ${latencyText}</h3>
-                                                    <h4>Request:</h4>
-                                                    <pre>${JSON.stringify(request, null, 2)}</pre>
-                                                    <h4>Response:</h4>
-                                                    <pre class="${statusClass}">${JSON.stringify(response, null, 2)}</pre>
-                                                `;
+                        <h3>${timestamp} - ${title} ${latencyText}</h3>
+                        <h4>Request:</h4>
+                        <pre>${JSON.stringify(request, null, 2)}</pre>
+                        <h4>Response:</h4>
+                        <pre class="${statusClass}">${JSON.stringify(response, null, 2)}</pre>
+                    `;
 
         logsContainer.prepend(logEntry);
     }
@@ -317,6 +357,9 @@
                 method: "GET"
             };
             const response = await fetch(apiBaseUrl + "/presigned-get?key=" + fileKey);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch presigned URL: ${response.status} ${response.statusText}`);
+            }
 
             const data = await response.json();
             const requestEnd = performance.now();
@@ -328,14 +371,12 @@
             const downloadStart = performance.now();
             const imageResponse = await fetch(data.url);
 
+
             const blob = await imageResponse.blob();
             const downloadEnd = performance.now();
 
-            // Create object URL and display image
-            const imageUrl = URL.createObjectURL(blob);
-            const img = document.getElementById("valetImage");
-            img.src = imageUrl;
-            img.style.display = "block";
+            // Create object URL and display media
+            const imageUrl = displayMedia(blob, "valetImage");
 
             const totalTime = performance.now() - startTime;
             const requestTime = requestEnd - requestStart;
@@ -386,14 +427,14 @@
 
             // Request image through server proxy - fixed URL formation
             const response = await fetch(apiBaseUrl + "/proxy-image?key=" + fileKey);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+            }
 
             const blob = await response.blob();
 
-            // Create object URL and display image
-            const imageUrl = URL.createObjectURL(blob);
-            const img = document.getElementById("proxyImage");
-            img.src = imageUrl;
-            img.style.display = "block";
+            // Create object URL and display media
+            const imageUrl = displayMedia(blob, "proxyImage");
 
             const totalTime = performance.now() - startTime;
 
@@ -448,10 +489,10 @@
             const percentage = Math.round((diff / Math.max(perfData.valet, perfData.proxy)) * 100);
 
             document.getElementById("comparisonResults").innerHTML = `
-                                                <p><strong>Valet Key method:</strong> ${Math.round(perfData.valet)}ms</p>
-                                                <p><strong>Server Proxy method:</strong> ${Math.round(perfData.proxy)}ms</p>
-                                                <p><strong>Result:</strong> ${faster} method was ${percentage}% faster (${Math.round(diff)}ms difference)</p>
-                                            `;
+                            <p><strong>Valet Key method:</strong> ${Math.round(perfData.valet)}ms</p>
+                            <p><strong>Server Proxy method:</strong> ${Math.round(perfData.proxy)}ms</p>
+                            <p><strong>Result:</strong> ${faster} method was ${percentage}% faster (${Math.round(diff)}ms difference)</p>
+                        `;
         }
     }
 
@@ -486,6 +527,113 @@
         const location = res.headers.get("Location"); // get the final url of our uploaded image
         return decodeURIComponent(location);
     }
+
+    document.getElementById("compareSimultaneously").addEventListener("click", async function () {
+        try {
+            // Reset previous results
+            document.getElementById("valetStats").innerHTML = '<p><strong>Status:</strong> Loading...</p>';
+            document.getElementById("proxyStats").innerHTML = '<p><strong>Status:</strong> Loading...</p>';
+
+            const valetFileKey = document.getElementById("valetFileSelect").value;
+            const proxyFileKey = document.getElementById("proxyFileSelect").value;
+
+            // Start both downloads simultaneously using Promise.all
+            const startTime = performance.now();
+
+            // Run both requests in parallel
+            const [valetResult, proxyResult] = await Promise.all([
+                (async () => {
+                    // Valet key download
+                    const valetStartTime = performance.now();
+
+                    // Request presigned URL for download
+                    const response = await fetch(`${apiBaseUrl}/presigned-get?key=${valetFileKey}`);
+                    const data = await response.json();
+
+                    // Download the media using the presigned URL
+                    const mediaResponse = await fetch(data.url);
+                    const blob = await mediaResponse.blob();
+
+                    // Create object URL and display media
+                    const mediaUrl = displayMedia(blob, "valetImage");
+
+                    const valetTime = performance.now() - valetStartTime;
+
+                    return {
+                        time: valetTime,
+                        blob: blob,
+                        method: "valet"
+                    };
+                })(),
+
+                (async () => {
+                    // Server proxy download
+                    const proxyStartTime = performance.now();
+
+                    // Request media through server proxy
+                    const response = await fetch(`${apiBaseUrl}/proxy-image?key=${proxyFileKey}`);
+                    const blob = await response.blob();
+
+                    // Create object URL and display media
+                    const mediaUrl = displayMedia(blob, "proxyImage");
+
+                    const proxyTime = performance.now() - proxyStartTime;
+
+                    return {
+                        time: proxyTime,
+                        blob: blob,
+                        method: "proxy"
+                    };
+                })()
+            ]);
+
+            // Show results
+            document.getElementById("valetStats").innerHTML = `
+                            <p><strong>Total time:</strong> ${Math.round(valetResult.time)}ms</p>
+                            <p><strong>File size:</strong> ${(valetResult.blob.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        `;
+
+            document.getElementById("proxyStats").innerHTML = `
+                            <p><strong>Total time:</strong> ${Math.round(proxyResult.time)}ms</p>
+                            <p><strong>File size:</strong> ${(proxyResult.blob.size / (1024 * 1024)).toFixed(2)} MB</p>
+                        `;
+
+            // Update comparison
+            updateComparison("valet", valetResult.time);
+            updateComparison("proxy", proxyResult.time);
+
+            // Log the simultaneous download
+            logApiCall("Simultaneous Download (Valet)", {
+                url: `${apiBaseUrl}/presigned-get?key=${valetFileKey}`,
+                method: "GET"
+            }, {
+                status: "Success",
+                size: `${(valetResult.blob.size / (1024 * 1024)).toFixed(2)} MB`,
+                type: valetResult.blob.type
+            }, Math.round(valetResult.time));
+
+            logApiCall("Simultaneous Download (Proxy)", {
+                url: `${apiBaseUrl}/proxy-image?key=${proxyFileKey}`,
+                method: "GET"
+            }, {
+                status: "Success",
+                size: `${(proxyResult.blob.size / (1024 * 1024)).toFixed(2)} MB`,
+                type: proxyResult.blob.type
+            }, Math.round(proxyResult.time));
+
+        } catch (error) {
+            logApiCall("Error in Simultaneous Download", {}, {
+                error: error.message
+            });
+
+            document.getElementById("valetStats").innerHTML = `
+                            <p class="status-error"><strong>Error:</strong> ${error.message}</p>
+                        `;
+            document.getElementById("proxyStats").innerHTML = `
+                            <p class="status-error"><strong>Error:</strong> ${error.message}</p>
+                        `;
+        }
+    });
 </script>
 </body>
 </html>
