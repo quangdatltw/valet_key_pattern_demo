@@ -9,10 +9,26 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             line-height: 1.6;
-            max-width: 1000px;
-            margin: 0 auto;
+            margin: 0;
             padding: 20px;
             color: #333;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .content-column {
+            flex: 7;
+            min-width: 0;
+        }
+
+        .log-column {
+            flex: 3;
+            min-width: 820px;
         }
 
         h1, h2 {
@@ -71,7 +87,8 @@
         }
 
         .api-log {
-            margin-top: 20px;
+            position: sticky;
+            top: 20px;
             border: 1px solid #ddd;
             padding: 15px;
             border-radius: 8px;
@@ -84,6 +101,11 @@
             margin-top: 0;
             border-bottom: 1px solid #ddd;
             padding-bottom: 10px;
+        }
+
+        #apiLogs {
+            max-height: 90vh;
+            overflow-y: auto;
         }
 
         .log-entry {
@@ -178,73 +200,124 @@
             margin-top: 10px;
             width: 100%;
         }
+
+        #expireButtons {
+            display: flex;
+            flex-direction: row;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
-<h1>Upload to S3</h1>
-<p>Upload a file to Amazon S3 using a presigned POST request.</p>
+<div class="main-container">
+    <div class="content-column">
+        <h1>Upload to S3</h1>
+        <p>Upload a file to Amazon S3 using a presigned POST request.</p>
 
-<form enctype="multipart/form-data" id="uploadForm">
-    <label for="file">File:</label>
-    <input id="file" name="file" required type="file"/> <br/>
-    <input name="submit" type="submit" value="Upload to Amazon S3"/>
-</form>
+        <form enctype="multipart/form-data" id="uploadForm">
+            <label for="file">File:</label>
+            <input id="file" name="file" required type="file"/> <br/>
+            <input name="submit" type="submit" value="Upload to Amazon S3"/>
+        </form>
 
-<h2>Media Download Comparison</h2>
-<p>Compare download performance between valet key pattern and server proxy.</p>
+        <h2>Media Download Comparison</h2>
+        <p>Compare download performance between valet key pattern and server proxy.</p>
 
-<div class="download-section">
-    <div class="download-method">
-        <h3>Valet Key Method</h3>
-        <p>Client directly downloads from S3 using a presigned URL</p>
-        <select class="file-select" id="valetFileSelect">
-            <option value="image.png">image.png</option>
-            <option value="7mb.jpg">7mb.jpg (7MB)</option>
-            <option value="15mb.png">15mb.png (15MB)</option>
-            <option value="sample.mp4">sample.mp4 (Video)</option>
-        </select>
-        <button id="downloadValet">Download with Valet Key</button>
-        <div class="media-container" id="valetImage"></div>
-        <div id="valetStats"></div>
+        <div class="download-section">
+            <div class="download-method">
+                <h3>Valet Key Method</h3>
+                <p>Client directly downloads from S3 using a presigned URL</p>
+                <select class="file-select" id="valetFileSelect">
+                    <option value="image.png">image.png</option>
+                    <option value="7mb.jpg">7mb.jpg (7MB)</option>
+                    <option value="15mb.png">15mb.png (15MB)</option>
+                    <option value="sample.mp4">sample.mp4 (Video)</option>
+                </select>
+                <button id="downloadValet">Download with Valet Key</button>
+                <div class="media-container" id="valetImage"></div>
+                <div id="valetStats"></div>
+            </div>
+
+            <div class="download-method">
+                <h3>Server Proxy Method</h3>
+                <p>Server downloads from S3 and forwards to client</p>
+                <select class="file-select" id="proxyFileSelect">
+                    <option value="image.png">image.png</option>
+                    <option value="7mb.jpg">7mb.jpg (7MB)</option>
+                    <option value="15mb.png">15mb.png (15MB)</option>
+                    <option value="sample.mp4">sample.mp4 (Video)</option>
+                </select>
+                <button id="downloadProxy">Download via Server</button>
+                <div class="media-container" id="proxyImage"></div>
+                <div id="proxyStats"></div>
+            </div>
+        </div>
+
+        <button id="compareSimultaneously"
+                style="display: block; margin: 20px auto; width: 50%; background-color: #4CAF50;">
+            Compare Both Methods Simultaneously
+        </button>
+
+        <div class="performance-comparison" id="performanceComparison" style="display: none;">
+            <h3>Performance Comparison</h3>
+            <div id="comparisonResults"></div>
+        </div>
+
+        <h2>URL Expiration Test</h2>
+        <p>Test downloading with the same URL multiple times to observe URL expiration behavior.</p>
+
+        <div class="download-section">
+            <div class="download-method" style="flex: 100%;">
+                <h3>Valet Key URL Expiration Test</h3>
+                <p>The presigned URL from "Download with Valet Key" will expire after 30 seconds</p>
+
+                <div id="expiringUrlDisplay"
+                     style="display: none; margin: 15px 0; padding: 10px; background: #f0f7ff; border-left: 4px solid #0066cc;">
+                    <p><strong>Using the same Valet URL</strong></p>
+                    <p><strong>Expires in:</strong> <span id="countdown">30</span> seconds</p>
+                    <p><strong>Current time:</strong> <span id="currentTime"></span></p>
+                    <p><strong>Expiry time:</strong> <span id="expiryTime"></span></p>
+                </div>
+
+                <div id="expireButtons" style="display: none;">
+                    <button id="tryBeforeExpiry">Download with Same URL Now</button>
+                    <button id="tryAfterExpiry">Wait & Download After URL Expires</button>
+                </div>
+
+                <div class="media-container" id="expireImage"></div>
+                <div id="expireStats"></div>
+            </div>
+        </div>
     </div>
 
-    <div class="download-method">
-        <h3>Server Proxy Method</h3>
-        <p>Server downloads from S3 and forwards to client</p>
-        <select class="file-select" id="proxyFileSelect">
-            <option value="image.png">image.png</option>
-            <option value="7mb.jpg">7mb.jpg (7MB)</option>
-            <option value="15mb.png">15mb.png (15MB)</option>
-            <option value="sample.mp4">sample.mp4 (Video)</option>
-        </select>
-        <button id="downloadProxy">Download via Server</button>
-        <div class="media-container" id="proxyImage"></div>
-        <div id="proxyStats"></div>
+    <div class="log-column">
+        <div class="api-log">
+            <h2>API Call Logs</h2>
+            <div id="apiLogs"></div>
+        </div>
     </div>
-
 </div>
-<button id="compareSimultaneously" style="display: block; margin: 20px auto; width: 50%; background-color: #4CAF50;">
-    Compare Both Methods Simultaneously
-</button>
-
-<div class="performance-comparison" id="performanceComparison" style="display: none;">
-    <h3>Performance Comparison</h3>
-    <div id="comparisonResults"></div>
-</div>
-
-<div class="api-log">
-    <h2>API Call Logs</h2>
-    <div id="apiLogs"></div>
-</div>
-
 <script>
     // Use dynamic base URL instead of hardcoded localhost
     const apiBaseUrl = window.location.origin;
 
     function displayMedia(blob, elementId) {
-        const url = URL.createObjectURL(blob);
+        // Clean up any previous object URLs to prevent memory leaks
         const container = document.getElementById(elementId);
+        const existingMedia = container.querySelector('img, video');
+
+        if (existingMedia) {
+            // Revoke the old object URL if it exists
+            if (existingMedia.src && existingMedia.src.startsWith('blob:')) {
+                URL.revokeObjectURL(existingMedia.src);
+            }
+        }
+
+        // Clear the container contents
         container.innerHTML = '';
+
+        // Create new object URL and display media
+        const url = URL.createObjectURL(blob);
 
         if (blob.type.startsWith('video/')) {
             const video = document.createElement('video');
@@ -288,6 +361,7 @@
         logsContainer.prepend(logEntry);
     }
 
+
     // Upload functionality
     document.getElementById("uploadForm").addEventListener("submit", async function (event) {
         event.preventDefault();
@@ -314,26 +388,7 @@
             // Log the presigned response
             logApiCall("Request Presigned URL", presignedRequest, presignedPost, presignedLatency);
 
-            // Upload to S3
-            const s3Request = {
-                url: presignedPost.url,
-                method: "POST",
-                body: "FormData with file and presigned fields"
-            };
-
-            // Measure S3 upload time
-            const uploadStartTime = performance.now();
-
             const uploadedFileUrl = await uploadFile(file, presignedPost);
-
-            const uploadEndTime = performance.now();
-            const uploadLatency = Math.round(uploadEndTime - uploadStartTime);
-
-            // Log the S3 upload response
-            logApiCall("Upload to S3", s3Request, {
-                status: "Success",
-                uploadedFileUrl: uploadedFileUrl
-            }, uploadLatency);
 
         } catch (error) {
             logApiCall("Error", {}, {
@@ -341,6 +396,37 @@
             });
         }
     });
+
+    async function uploadFile(file, presignedPost) {
+        const formData = new FormData();
+        formData.append("Content-Type", file.type);
+        Object.entries(presignedPost.fields).forEach(([key, value]) => {
+            formData.append(key, value);
+        });
+        formData.append("file", file);
+        const uploadStartTime = performance.now();
+
+
+
+        const res = await window.fetch(presignedPost.url, {
+            method: "POST",
+            body: formData,
+        });
+        const uploadEndTime = performance.now();
+        const uploadLatency = Math.round(uploadEndTime - uploadStartTime);
+        logApiCall("Upload to S3", {
+            url: presignedPost.url,
+            method: "POST",
+            body: formData,
+        }, {
+            status: res.status,
+            statusText: res.statusText,
+            uploadedFileUrl: res.headers.get('Location'),
+        }, uploadLatency);
+
+        const location = res.headers.get("Location"); // get the final url of our uploaded image
+        return decodeURIComponent(location);
+    }
 
     // Download with Valet Key
     document.getElementById("downloadValet").addEventListener("click", async function () {
@@ -511,22 +597,6 @@
         return res.json();
     }
 
-    async function uploadFile(file, presignedPost) {
-        const formData = new FormData();
-        formData.append("Content-Type", file.type);
-        Object.entries(presignedPost.fields).forEach(([key, value]) => {
-            formData.append(key, value);
-        });
-        formData.append("file", file);
-
-        const res = await window.fetch(presignedPost.url, {
-            method: "POST",
-            body: formData,
-        });
-
-        const location = res.headers.get("Location"); // get the final url of our uploaded image
-        return decodeURIComponent(location);
-    }
 
     document.getElementById("compareSimultaneously").addEventListener("click", async function () {
         try {
@@ -632,6 +702,282 @@
             document.getElementById("proxyStats").innerHTML = `
                             <p class="status-error"><strong>Error:</strong> ${error.message}</p>
                         `;
+        }
+    });
+    // Global variables to store the last used valet URL and expiry time
+    let lastValetUrl = null;
+    let urlExpireTime = 0;
+    let countdownInterval = null;
+
+    // Hook into the existing downloadValet event listener
+    const originalValetClick = document.getElementById("downloadValet").onclick;
+    document.getElementById("downloadValet").onclick = async function (event) {
+        // First, call the original handler
+        if (typeof originalValetClick === 'function') {
+            await originalValetClick.call(this, event);
+        }
+
+        // Now, capture the URL that was used and set up our expiration test
+        const valetBtn = document.getElementById("downloadValet");
+        const currentBtn = this;
+
+        // Only proceed if we're the actual downloadValet button
+        if (valetBtn === currentBtn) {
+            // Make buttons and info visible
+            document.getElementById("expiringUrlDisplay").style.display = "block";
+            document.getElementById("expireButtons").style.display = "block";
+
+            // Set up URL expiration countdown (AWS S3 default is 30 seconds)
+            urlExpireTime = Date.now() + 30000; // 30 seconds from now
+
+            // Update timestamps
+            document.getElementById("currentTime").textContent = new Date().toLocaleTimeString();
+            document.getElementById("expiryTime").textContent = new Date(urlExpireTime).toLocaleTimeString();
+
+            // Clear previous countdown
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
+            // Start countdown
+            startUrlCountdown();
+        }
+    };
+
+    function startUrlCountdown() {
+        const countdownElement = document.getElementById("countdown");
+        countdownInterval = setInterval(() => {
+            const secondsLeft = Math.max(0, Math.floor((urlExpireTime - Date.now()) / 1000));
+            countdownElement.textContent = secondsLeft;
+
+            // When expired, update styling
+            if (secondsLeft === 0) {
+                clearInterval(countdownInterval);
+                countdownElement.style.color = "red";
+                countdownElement.parentElement.innerHTML = countdownElement.parentElement.innerHTML.replace(
+                    "Expires in:", "<span style='color: red;'>EXPIRED</span>"
+                );
+            }
+        }, 1000);
+    }
+
+    // Try download before URL expires
+    document.getElementById("tryBeforeExpiry").addEventListener("click", async function () {
+        try {
+            // Clear any existing media in the container first
+            const container = document.getElementById("expireImage");
+            const existingMedia = container.querySelector('img, video');
+            if (existingMedia) {
+                if (existingMedia.src && existingMedia.src.startsWith('blob:')) {
+                    URL.revokeObjectURL(existingMedia.src);
+                }
+            }
+            container.innerHTML = '';
+
+            // Get the last used URL from the logs
+            const apiLogs = document.getElementById("apiLogs").children;
+            let presignedUrlEntry = null;
+
+            // Find the most recent presigned URL log entry
+            for (let i = 0; i < apiLogs.length; i++) {
+                if (apiLogs[i].innerHTML.includes("Get Presigned Download URL")) {
+                    presignedUrlEntry = apiLogs[i];
+                    break;
+                }
+            }
+
+            if (!presignedUrlEntry) {
+                throw new Error("No presigned URL found. Please click 'Download with Valet Key' first.");
+            }
+
+            // Extract the URL from the log entry
+            const urlMatch = presignedUrlEntry.innerHTML.match(/"url":\s*"([^"]+)"/);
+            if (!urlMatch || !urlMatch[1]) {
+                throw new Error("Could not find URL in log entry");
+            }
+
+            const data = JSON.parse(presignedUrlEntry.querySelector("pre:last-of-type").textContent);
+            const startTime = performance.now();
+
+            // Show status
+            document.getElementById("expireStats").innerHTML = `
+                <p><strong>Status:</strong> Downloading with same URL...</p>
+                <p><strong>Current time:</strong> ${new Date().toLocaleTimeString()}</p>
+                <p><strong>URL expired?</strong> ${Date.now() > urlExpireTime ? "Yes" : "No"}</p>
+            `;
+
+            // Use the URL directly from the log
+            const imageResponse = await fetch(data.url, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache'
+                }
+            });
+
+            if (!imageResponse.ok) {
+                throw new Error(`Failed with status: ${imageResponse.status} - ${imageResponse.statusText}`);
+            }
+
+            const blob = await imageResponse.blob();
+            displayMedia(blob, "expireImage");
+
+            const totalTime = performance.now() - startTime;
+
+            document.getElementById("expireStats").innerHTML = `
+                <p><strong>Total time:</strong> ${Math.round(totalTime)}ms</p>
+                <p><strong>File size:</strong> ${(blob.size / (1024 * 1024)).toFixed(2)} MB</p>
+                <p class="status-success"><strong>Status:</strong> Success</p>
+                <p><strong>Current time:</strong> ${new Date().toLocaleTimeString()}</p>
+                <p><strong>URL expired?</strong> ${Date.now() > urlExpireTime ? "Yes" : "No"}</p>
+            `;
+
+            logApiCall("Reused URL Download", {
+                url: data.url.substring(0, 50) + "...",
+                method: "GET"
+            }, {
+                status: "Success",
+                size: `${(blob.size / (1024 * 1024)).toFixed(2)} MB`,
+                type: blob.type,
+                urlExpired: Date.now() > urlExpireTime ? "Yes" : "No"
+            }, Math.round(totalTime));
+
+        } catch (error) {
+            // Get the URL from the logs (if possible) to include in the error log
+            let urlInfo = {};
+            try {
+                const apiLogs = document.getElementById("apiLogs").children;
+                let presignedUrlEntry = null;
+                for (let i = 0; i < apiLogs.length; i++) {
+                    if (apiLogs[i].innerHTML.includes("Get Presigned Download URL")) {
+                        presignedUrlEntry = apiLogs[i];
+                        break;
+                    }
+                }
+
+                if (presignedUrlEntry) {
+                    const data = JSON.parse(presignedUrlEntry.querySelector("pre:last-of-type").textContent);
+                    urlInfo = {
+                        url: data.url.substring(0, 50) + "...",
+                        method: "GET"
+                    };
+                }
+            } catch (e) {
+                urlInfo = {method: "GET", error: "Could not extract URL info"};
+            }
+
+            document.getElementById("expireStats").innerHTML = `
+                <p class="status-error"><strong>Error:</strong> ${error.message}</p>
+                <p><strong>Current time:</strong> ${new Date().toLocaleTimeString()}</p>
+                <p><strong>URL expired?</strong> ${Date.now() > urlExpireTime ? "Yes" : "No"}</p>
+            `;
+
+            logApiCall("Reused URL Download Error", urlInfo, {
+                error: error.message,
+                expired: Date.now() > urlExpireTime ? "Yes" : "No"
+            });
+        }
+    });
+
+    // Wait for expiry and try download
+    document.getElementById("tryAfterExpiry").addEventListener("click", async function () {
+        try {
+            // Get the last used URL from the logs
+            const apiLogs = document.getElementById("apiLogs").children;
+            let presignedUrlEntry = null;
+
+            // Find the most recent presigned URL log entry
+            for (let i = 0; i < apiLogs.length; i++) {
+                if (apiLogs[i].innerHTML.includes("Get Presigned Download URL")) {
+                    presignedUrlEntry = apiLogs[i];
+                    break;
+                }
+            }
+
+            if (!presignedUrlEntry) {
+                throw new Error("No presigned URL found. Please click 'Download with Valet Key' first.");
+            }
+
+            const data = JSON.parse(presignedUrlEntry.querySelector("pre:last-of-type").textContent);
+
+            // Calculate time until expiry
+            const timeUntilExpiry = urlExpireTime - Date.now();
+
+            if (timeUntilExpiry > 0) {
+
+                const waitTime = timeUntilExpiry + 2000;
+                const waitSeconds = Math.ceil(waitTime / 1000);
+
+                document.getElementById("expireStats").innerHTML = `
+                    <p><strong>Status:</strong> Waiting ${waitSeconds} seconds for URL to expire...</p>
+                    <p><strong>Current time:</strong> ${new Date().toLocaleTimeString()}</p>
+                    <p><strong>URL expires at:</strong> ${new Date(urlExpireTime).toLocaleTimeString()}</p>
+                `;
+
+                // Wait until expiry plus buffer
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+
+            const startTime = performance.now();
+
+            // Show status
+            document.getElementById("expireStats").innerHTML = `
+                <p><strong>Status:</strong> Attempting download with expired URL...</p>
+                <p><strong>Current time:</strong> ${new Date().toLocaleTimeString()}</p>
+                <p><strong>URL expired:</strong> ${Math.round((Date.now() - urlExpireTime) / 1000)}s ago</p>
+            `;
+
+            // Try to use the expired URL
+            const imageResponse = await fetch(data.url, {
+                cache: 'no-store',
+                headers: {
+                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                    'Pragma': 'no-cache'
+                }
+            });
+
+            if (!imageResponse.ok) {
+                throw new Error(`Failed with status: ${imageResponse.status} - ${imageResponse.statusText}`);
+            }
+
+            const blob = await imageResponse.blob();
+            displayMedia(blob, "expireImage");
+
+            const totalTime = performance.now() - startTime;
+
+            document.getElementById("expireStats").innerHTML = `
+                <p><strong>Total time:</strong> ${Math.round(totalTime)}ms</p>
+                <p><strong>File size:</strong> ${(blob.size / (1024 * 1024)).toFixed(2)} MB</p>
+                <p class="status-success"><strong>Status:</strong> Success (unexpected - URL should be expired!)</p>
+                <p><strong>Current time:</strong> ${new Date().toLocaleTimeString()}</p>
+                <p><strong>URL expired:</strong> ${Math.round((Date.now() - urlExpireTime) / 1000)}s ago</p>
+            `;
+
+            logApiCall("Post-Expiry URL Download", {
+                url: data.url.substring(0, 50) + "...",
+                method: "GET"
+            }, {
+                status: "Success (unexpected)",
+                size: `${(blob.size / (1024 * 1024)).toFixed(2)} MB`,
+                type: blob.type,
+                secondsAfterExpiry: Math.round((Date.now() - urlExpireTime) / 1000)
+            }, Math.round(totalTime));
+
+        } catch (error) {
+            // This is actually the expected outcome - error on expired URL
+            document.getElementById("expireStats").innerHTML = `
+                <p class="status-success"><strong>Expected result:</strong> ${error.message}</p>
+                <p><strong>Current time:</strong> ${new Date().toLocaleTimeString()}</p>
+                <p><strong>URL expired:</strong> ${Math.round((Date.now() - urlExpireTime) / 1000)}s ago</p>
+                <p>This is the expected behavior - AWS S3 presigned URLs should fail after expiration.</p>
+            `;
+
+            logApiCall("Post-Expiry URL Download", {
+                method: "GET"
+            }, {
+                status: "Expected failure (URL expired)",
+                error: error.message,
+                secondsAfterExpiry: Math.round((Date.now() - urlExpireTime) / 1000)
+            });
         }
     });
 </script>

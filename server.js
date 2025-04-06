@@ -79,7 +79,7 @@ app.get("/presigned-get", async (req, res) => {
             Key: key
         });
 
-        const url = await getSignedUrl(s3Client, command, { expiresIn: 20 });
+        const url = await getSignedUrl(s3Client, command, { expiresIn: 30 });
         console.log(`Generated URL for ${key}`);
 
         res.json({ url });
