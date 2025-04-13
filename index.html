@@ -207,9 +207,11 @@
             gap: 10px;
         }
 
+
         .code-toggle {
             background-color: #000000;
-            border: 1px solid #ccc;
+            color: #fff;
+            border: 1px solid #444;
             border-radius: 4px;
             padding: 8px 12px;
             cursor: pointer;
@@ -220,19 +222,56 @@
         }
 
         .code-toggle:hover {
-            background-color: #e0f0ff;
+            background-color: #3d3d3d;
         }
 
         .code-panel {
             display: none;
-            background-color: #f5f5f5;
-            border: 1px solid #ddd;
+            background-color: #ffffff;
+            border: 1px solid #333;
             border-radius: 4px;
             padding: 15px;
             margin: 10px 0;
             font-family: 'Consolas', 'Monaco', monospace;
             font-size: 18px;
             overflow-x: auto;
+            color: #000000;
+            line-height: 1.5;
+        }
+
+        .code-panel pre {
+            background-color: transparent;
+            border: none;
+            color: #000000;
+            font-weight: bold;
+            padding: 0;
+            margin: 0;
+            max-height: none;
+        }
+
+        /* Syntax highlighting classes - Light theme */
+        .keyword {
+            color: #0000ff; /* blue */
+        }
+
+        .string {
+            color: #a31515; /* dark red */
+        }
+
+        .comment {
+            color: #008000; /* green */
+        }
+
+        .function {
+            color: #795e26; /* brown */
+        }
+
+        .property {
+            color: #267f99; /* teal */
+        }
+
+        .number {
+            color: #098658; /* dark green */
         }
     </style>
 </head>
@@ -250,37 +289,37 @@
             <div class="code-panel" id="uploadCode">
         <pre>
 // Server-side S3 presigned URL generation
-async function generateUploadUrl({ type }) {
-    const expiresInMinutes = 1;
-    const name = uuid() + '.' + type.split('/')[1];
+    async function generateUploadUrl({ type }) {
+        const expiresInMinutes = 1;
+        const name = uuid() + '.' + type.split('/')[1];
 
-    return await createPresignedPost(s3Client, {
-        Bucket: "valet-key-demo",
-        Key: `${name}`,
-        Expires: expiresInMinutes * 60, // the url will only be valid for 1 minute
-        Conditions: [["eq", "$Content-Type", type]], // Validates content type
-    });
-}
+        return await createPresignedPost(s3Client, {
+            Bucket: "valet-key-demo",
+            Key: `${name}`,
+            Expires: expiresInMinutes * 60, // the url will only be valid for 1 minute
+            Conditions: [["eq", "$Content-Type", type]], // Validates content type
+        });
+    }
 
 // Client-side upload handling
-async function uploadFile(file, presignedPost) {
-    const formData = new FormData();
-    formData.append("Content-Type", file.type);
+    async function uploadFile(file, presignedPost) {
+        const formData = new FormData();
+        formData.append("Content-Type", file.type);
 
-    // Add all fields from presigned URL
-    Object.entries(presignedPost.fields).forEach(([key, value]) => {
-        formData.append(key, value);
-    });
-    formData.append("file", file);
+        // Add all fields from presigned URL
+        Object.entries(presignedPost.fields).forEach(([key, value]) => {
+            formData.append(key, value);
+        });
+        formData.append("file", file);
 
-    // Upload directly to S3
-    const res = await window.fetch(presignedPost.url, {
-        method: "POST",
-        body: formData,
-    });
+        // Upload directly to S3
+        const res = await window.fetch(presignedPost.url, {
+            method: "POST",
+            body: formData,
+        });
 
-    return decodeURIComponent(res.headers.get("Location"));
-}</pre>
+        return decodeURIComponent(res.headers.get("Location"));
+    }</pre>
             </div>
         </form>
 
@@ -303,50 +342,50 @@ async function uploadFile(file, presignedPost) {
                 <div class="code-panel" id="valetCode">
         <pre>
 // Server-side presigned URL generation
-app.get("/presigned-get", async (req, res) => {
-    try {
-        const key = req.query.key || "image.png";
+    app.get("/presigned-get", async (req, res) => {
+        try {
+            const key = req.query.key || "image.png";
 
-        // Check if object exists first
-        const headCommand = new HeadObjectCommand({
-            Bucket: "valet-key-demo",
-            Key: key
-        });
+            // Check if object exists first
+            const headCommand = new HeadObjectCommand({
+                Bucket: "valet-key-demo",
+                Key: key
+            });
 
-        await s3Client.send(headCommand);
+            await s3Client.send(headCommand);
 
-        // Generate presigned URL with 30 second expiration
-        const command = new GetObjectCommand({
-            Bucket: "valet-key-demo",
-            Key: key
-        });
+            // Generate presigned URL with 30 second expiration
+            const command = new GetObjectCommand({
+                Bucket: "valet-key-demo",
+                Key: key
+            });
 
-        const url = await getSignedUrl(s3Client, command, { expiresIn: 30 });
-        res.json({ url });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
+            const url = await getSignedUrl(s3Client, command, { expiresIn: 30 });
+            res.json({ url });
+        } catch (error) {
+            res.status(500).json({ error: error.message });
+        }
+    });
 
 // Client-side download
-async function downloadWithValetKey(fileKey) {
-    // Request presigned URL from server
-    const response = await fetch(apiBaseUrl + "/presigned-get?key=" + fileKey);
-    const data = await response.json();
+    async function downloadWithValetKey(fileKey) {
+        // Request presigned URL from server
+        const response = await fetch(apiBaseUrl + "/presigned-get?key=" + fileKey);
+        const data = await response.json();
 
-    // Use presigned URL to download directly from S3
-    const imageResponse = await fetch(data.url);
-    const blob = await imageResponse.blob();
+        // Use presigned URL to download directly from S3
+        const imageResponse = await fetch(data.url);
+        const blob = await imageResponse.blob();
 
-    return blob;
-}</pre>
+        return blob;
+    }</pre>
                 </div>
                 <div class="media-container" id="valetImage"></div>
                 <div id="valetStats"></div>
             </div>
 
             <div class="download-method">
-                <h3>Server Proxy Method</h3>
+                <h3>Server Method</h3>
                 <p>Server downloads from S3 and forwards to client</p>
                 <select class="file-select" id="proxyFileSelect">
                     <option value="image.png">image.png</option>
@@ -443,6 +482,74 @@ async function downloadViaServerProxy(fileKey) {
     </div>
 </div>
 <script>
+    function toggleCode(id) {
+        const codePanel = document.getElementById(id);
+        if (codePanel.style.display === "block") {
+            codePanel.style.display = "none";
+        } else {
+            codePanel.style.display = "block";
+
+            // Clean and highlight code when first displayed
+            const preElement = codePanel.querySelector('pre');
+            if (preElement && !preElement.dataset.formatted) {
+                sanitizeAndHighlight(preElement);
+                preElement.dataset.formatted = 'true';
+            }
+        }
+    }
+    function sanitizeAndHighlight(preElement) {
+        // Get the text content, which removes all HTML formatting
+        let codeText = preElement.textContent;
+
+        // First clean up any existing partial tags or highlighting artifacts
+        codeText = codeText.replace(/<\/?span[^>]*>/g, '')
+            .replace(/function>/g, '')
+            .replace(/string>/g, '')
+            .replace(/comment>/g, '')
+            .replace(/property>/g, '')
+            .replace(/number>/g, '')
+            .replace(/"function">/g, '')
+            .replace(/"string">/g, '')
+            .replace(/"comment">/g, '')
+            .replace(/"property">/g, '')
+            .replace(/"number">/g, '');
+
+        // Escape HTML entities
+        const escapedCode = codeText
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        // Apply highlighting with clean regex patterns
+        // Set the highlighted HTML (use innerHTML, not textContent)
+        preElement.innerHTML = escapedCode
+            // Strings
+            .replace(/("(?:[^"\\]|\\.)*")|('(?:[^'\\]|\\.)*')|(`(?:[^`\\]|\\.)*`)/g,
+                '<span class="string">$&</span>')
+
+            // Comments
+            .replace(/(\/\/.*?)(?=$|\n)/g,
+                '<span class="comment">$1</span>')
+
+            // Function calls
+            .replace(/\b(?!if|else|try|catch|for|while|switch)(\w+)(?=\s*\()/g,
+                '<span class="function">$1</span>')
+
+            // Properties
+            .replace(/\.(\w+)\b/g,
+                '.<span class="property">$1</span>')
+
+            // Numbers
+            .replace(/\b(\d+(?:\.\d+)?)\b/g,
+                '<span class="number">$1</span>');
+    }
+    // Format code blocks that are visible on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.code-panel[style="display: block"] pre').forEach(pre => {
+            sanitizeAndHighlight(pre);
+            pre.dataset.formatted = 'true';
+        });
+    });
     // Use dynamic base URL instead of hardcoded localhost
     const apiBaseUrl = window.location.origin;
 
@@ -1125,14 +1232,7 @@ async function downloadViaServerProxy(fileKey) {
         }
     });
 
-    function toggleCode(id) {
-        const codePanel = document.getElementById(id);
-        if (codePanel.style.display === "block") {
-            codePanel.style.display = "none";
-        } else {
-            codePanel.style.display = "block";
-        }
-    }
+
 </script>
 </body>
 </html>
