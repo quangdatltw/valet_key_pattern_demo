@@ -21,7 +21,7 @@ Valet Key design pattern là một phương pháp mà bạn tạo ra một "chì
 ## Cách hoạt động
 
 <p>
-   <img src="res/valet_key.png" width="auto" height="auto">
+   <img src="valet_key.png" width="auto" height="auto">
 </p>
 
 ## Ưu điểm
