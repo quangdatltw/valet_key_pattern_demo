@@ -206,6 +206,34 @@
             flex-direction: row;
             gap: 10px;
         }
+
+        .code-toggle {
+            background-color: #000000;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 10px 0;
+            display: inline-block;
+            transition: background-color 0.2s;
+        }
+
+        .code-toggle:hover {
+            background-color: #e0f0ff;
+        }
+
+        .code-panel {
+            display: none;
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 18px;
+            overflow-x: auto;
+        }
     </style>
 </head>
 <body>
@@ -218,13 +246,49 @@
             <label for="file">File:</label>
             <input id="file" name="file" required type="file"/> <br/>
             <input name="submit" type="submit" value="Upload to Amazon S3"/>
-        </form>
+            <button class="code-toggle" onclick="toggleCode('uploadCode')" type="button">View Code</button>
+            <div class="code-panel" id="uploadCode">
+        <pre>
+// Server-side S3 presigned URL generation
+async function generateUploadUrl({ type }) {
+    const expiresInMinutes = 1;
+    const name = uuid() + '.' + type.split('/')[1];
 
+    return await createPresignedPost(s3Client, {
+        Bucket: "valet-key-demo",
+        Key: `${name}`,
+        Expires: expiresInMinutes * 60, // the url will only be valid for 1 minute
+        Conditions: [["eq", "$Content-Type", type]], // Validates content type
+    });
+}
+
+// Client-side upload handling
+async function uploadFile(file, presignedPost) {
+    const formData = new FormData();
+    formData.append("Content-Type", file.type);
+
+    // Add all fields from presigned URL
+    Object.entries(presignedPost.fields).forEach(([key, value]) => {
+        formData.append(key, value);
+    });
+    formData.append("file", file);
+
+    // Upload directly to S3
+    const res = await window.fetch(presignedPost.url, {
+        method: "POST",
+        body: formData,
+    });
+
+    return decodeURIComponent(res.headers.get("Location"));
+}</pre>
+            </div>
+        </form>
 
         <h2>Media Download Comparison</h2>
         <p>Compare download performance between valet key pattern and server proxy.</p>
 
         <div class="download-section">
+
             <div class="download-method">
                 <h3>Valet Key Method</h3>
                 <p>Client directly downloads from S3 using a presigned URL</p>
@@ -235,6 +299,48 @@
                     <option value="sample.mp4">sample.mp4 (Video)</option>
                 </select>
                 <button id="downloadValet">Download with Valet Key</button>
+                <button class="code-toggle" onclick="toggleCode('valetCode')" type="button">View Code</button>
+                <div class="code-panel" id="valetCode">
+        <pre>
+// Server-side presigned URL generation
+app.get("/presigned-get", async (req, res) => {
+    try {
+        const key = req.query.key || "image.png";
+
+        // Check if object exists first
+        const headCommand = new HeadObjectCommand({
+            Bucket: "valet-key-demo",
+            Key: key
+        });
+
+        await s3Client.send(headCommand);
+
+        // Generate presigned URL with 30 second expiration
+        const command = new GetObjectCommand({
+            Bucket: "valet-key-demo",
+            Key: key
+        });
+
+        const url = await getSignedUrl(s3Client, command, { expiresIn: 30 });
+        res.json({ url });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Client-side download
+async function downloadWithValetKey(fileKey) {
+    // Request presigned URL from server
+    const response = await fetch(apiBaseUrl + "/presigned-get?key=" + fileKey);
+    const data = await response.json();
+
+    // Use presigned URL to download directly from S3
+    const imageResponse = await fetch(data.url);
+    const blob = await imageResponse.blob();
+
+    return blob;
+}</pre>
+                </div>
                 <div class="media-container" id="valetImage"></div>
                 <div id="valetStats"></div>
             </div>
@@ -249,6 +355,44 @@
                     <option value="sample.mp4">sample.mp4 (Video)</option>
                 </select>
                 <button id="downloadProxy">Download via Server</button>
+                <button class="code-toggle" onclick="toggleCode('proxyCode')" type="button">View Code</button>
+                <div class="code-panel" id="proxyCode">
+        <pre>
+// Server-side proxy endpoint
+app.get("/proxy-image", async (req, res) => {
+    try {
+        const key = req.query.key || "image.png";
+
+        // Server requests the file from S3
+        const command = new GetObjectCommand({
+            Bucket: "valet-key-demo",
+            Key: key
+        });
+
+        const response = await s3Client.send(command);
+
+        // Set content type
+        if (response.ContentType) {
+            res.set('Content-Type', response.ContentType);
+        }
+
+        // Stream the object data to the client
+        response.Body.pipe(res);
+    } catch (error) {
+        res.status(500).json({
+            error: error.message,
+            details: error.stack
+        });
+    }
+});
+
+// Client-side download through server
+async function downloadViaServerProxy(fileKey) {
+    const response = await fetch(apiBaseUrl + "/proxy-image?key=" + fileKey);
+    const blob = await response.blob();
+    return blob;
+}</pre>
+                </div>
                 <div class="media-container" id="proxyImage"></div>
                 <div id="proxyStats"></div>
             </div>
@@ -406,7 +550,6 @@
         });
         formData.append("file", file);
         const uploadStartTime = performance.now();
-
 
 
         const res = await window.fetch(presignedPost.url, {
@@ -981,6 +1124,15 @@
             });
         }
     });
+
+    function toggleCode(id) {
+        const codePanel = document.getElementById(id);
+        if (codePanel.style.display === "block") {
+            codePanel.style.display = "none";
+        } else {
+            codePanel.style.display = "block";
+        }
+    }
 </script>
 </body>
 </html>
