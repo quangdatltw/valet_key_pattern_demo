@@ -28,8 +28,8 @@ app.get('/', (req, res) => {
 
 
 async function generateUploadUrl({ type }) {
-    const name = uuid();
     const expiresInMinutes = 1;
+    const name = uuid() + '.' + type.split('/')[1];
     return await createPresignedPost(s3Client, {
         Bucket: "valet-key-demo",
         Key: `${name}`,
